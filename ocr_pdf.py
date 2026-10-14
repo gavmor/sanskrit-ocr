@@ -26,6 +26,8 @@ import requests
 import pymupdf
 import pytesseract
 from PIL import Image
+from devanagari_validator import sanitize_devanagari_unicode, validate_devanagari_line
+
 
 DEFAULT_MODEL_URL = "http://127.0.0.1:8501/v1/models/sanskrit:predict"
 CONTAINER_NAME = "sanskrit-ocr-server"
@@ -261,9 +263,11 @@ def predict_line(roi, server_url=DEFAULT_MODEL_URL):
         prob = res["outputs"].get("probability", 0.0)
         decoded = decode_output(raw_out)
         cleaned = clean_repetitions(decoded)
-        return cleaned, prob
-    except Exception as e:
-        return "", 0.0
+        sanitized = sanitize_devanagari_unicode(cleaned)
+        is_valid, issues, _ = validate_devanagari_line(sanitized)
+        return sanitized, prob, is_valid, issues
+    except Exception:
+        return "", 0.0, False, ["InferenceError"]
 
 
 def process_pdf(pdf_path, pages_arg="57-60", output_dir="./ocr_results", server_url=DEFAULT_MODEL_URL, save_vis=False):
@@ -312,7 +316,7 @@ def process_pdf(pdf_path, pages_arg="57-60", output_dir="./ocr_results", server_
 
         for l_idx, (y, x, w, h) in enumerate(lines, 1):
             roi = img_np[y:y+h, x:x+w]
-            text, prob = predict_line(roi, server_url)
+            text, prob, is_valid, issues = predict_line(roi, server_url)
             script = classify_line_script(text)
             if text:
                 if script == "devanagari":
@@ -327,6 +331,8 @@ def process_pdf(pdf_path, pages_arg="57-60", output_dir="./ocr_results", server_
                 "bbox": {"x": int(x), "y": int(y), "w": int(w), "h": int(h)},
                 "text": text,
                 "script": script,
+                "unicode_valid": is_valid,
+                "unicode_issues": issues,
                 "probability": float(prob)
             })
 

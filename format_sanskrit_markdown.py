@@ -12,75 +12,8 @@ PAGES_DIR = Path("ocr_markdown/pages")
 OUTPUT_MD = Path("PingreeYJ_1_Sanskrit.md")
 
 DEV_NUMS = str.maketrans("0123456789", "०१२३४५६७८९")
+from devanagari_validator import sanitize_devanagari_unicode
 
-INDEP_TO_DEP_VOWELS = {
-    '\u0905': '',        # अ -> inherently inherent
-    '\u0906': '\u093E',  # आ -> ा
-    '\u0907': '\u093F',  # इ -> ि
-    '\u0908': '\u0940',  # ई -> ी
-    '\u0909': '\u0941',  # उ -> ु
-    '\u090A': '\u0942',  # ऊ -> ू
-    '\u090B': '\u0943',  # ऋ -> ृ
-    '\u090C': '\u0944',  # ऌ -> ॢ
-    '\u090F': '\u0947',  # ए -> े
-    '\u0910': '\u0948',  # ऐ -> ै
-    '\u0913': '\u094B',  # ओ -> ो
-    '\u0914': '\u094C',  # औ -> ौ
-}
-
-def sanitize_devanagari_unicode(text):
-    if not text:
-        return ""
-    # Decomposed independent vowels: अ + ा -> आ, etc.
-    decomp = {
-        '\u0905\u093E': '\u0906',
-        '\u0905\u093F': '\u0907',
-        '\u0905\u0940': '\u0908',
-        '\u0905\u0941': '\u0909',
-        '\u0905\u0942': '\u090A',
-        '\u0905\u0943': '\u090B',
-        '\u0905\u0947': '\u090F',
-        '\u0905\u0948': '\u0910',
-        '\u0905\u094B': '\u0913',
-        '\u0905\u094C': '\u0914',
-    }
-    for k, v in decomp.items():
-        text = text.replace(k, v)
-
-    # Strip combining accents from latin/border OCR specks
-    text = re.sub(r'[\u0300-\u036F]', '', text)
-
-    # Swap misplaced anusvara/candrabindu and matra: Anusvara + Matra -> Matra + Anusvara (दंु -> दुं)
-    text = re.sub(r'([\u0901\u0902])([\u093E-\u094C])', r'\2\1', text)
-
-    # Strip combining marks attached to avagraha ऽ
-    text = re.sub(r'\u093D[\u093E-\u094D]+', '\u093D', text)
-
-    # Strip dependent vowel marks attached to independent vowels
-    text = re.sub(r'([\u0904-\u0914])[\u093E-\u094C]+', r'\1', text)
-
-    # Virama followed by independent vowel: क् + इ -> कि, र् + इ -> रि
-    for indep, dep in INDEP_TO_DEP_VOWELS.items():
-        text = re.sub(r'\u094D+' + indep, dep, text)
-
-    # 1. Strip viramas immediately before or after a dependent vowel sign (e.g. श् + ु -> शु)
-    text = re.sub(r'\u094D+([\u093E-\u094C\u0962\u0963])', r'\1', text)
-    text = re.sub(r'([\u093E-\u094C\u0962\u0963])\u094D+', r'\1', text)
-    # 2. Collapse multiple consecutive viramas (्् -> ्)
-    text = re.sub(r'\u094D{2,}', '\u094D', text)
-    # 3. Collapse multiple identical matras
-    text = re.sub(r'([\u093E-\u094C])\1+', r'\1', text)
-    # 4. Anusvara/visarga followed by virama (ं् -> ं) or vice versa (क् + ं -> कं)
-    text = re.sub(r'([\u0901-\u0903])\u094D+', r'\1', text)
-    text = re.sub(r'\u094D+([\u0901-\u0903])', r'\1', text)
-    # Remove Vedic pitch accents which cause dotted circles in classical text
-    text = re.sub(r'[\u0951-\u0954]', '', text)
-    # 5. Remove leading combining marks (virama, matras, anusvara, visarga) at start of word
-    text = re.sub(r'(^|[\s\(\[\{>.,!?;:\-–—|।॥])[\u0901-\u0903\u093E-\u094D\u0962\u0963]+', r'\1', text)
-    text = re.sub(r'(^|[\s\(\[\{>.,!?;:\-–—|।॥])[\u0901-\u0903\u093E-\u094D\u0962\u0963]+', r'\1', text)
-    # 6. Remove isolated single consonant with virama at end of word or line (e.g. '। र्' -> '।')
-    text = re.sub(r'(\s+)[\u0915-\u0939]\u094D(?=[\s|।॥]|$)', r'', text)
-    return text
 
 def clean_line(l):
     # Normalize whitespace

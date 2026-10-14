@@ -25,6 +25,8 @@ import requests
 import pymupdf
 import pytesseract
 from PIL import Image
+from devanagari_validator import sanitize_devanagari_unicode, validate_devanagari_line
+
 
 MODEL_URL = "http://127.0.0.1:8501/v1/models/sanskrit:predict"
 
@@ -162,11 +164,14 @@ def process_page_worker(args_tuple):
             cleaned = clean_repetitions(decoded)
             if not cleaned:
                 continue
-            script = classify_line_script(cleaned)
+            sanitized = sanitize_devanagari_unicode(cleaned)
+            if not sanitized:
+                continue
+            script = classify_line_script(sanitized)
             if script == "devanagari":
-                verses.append(cleaned)
+                verses.append(sanitized)
             else:
-                apparatus.append(cleaned)
+                apparatus.append(sanitized)
 
         # Build Markdown representation
         md_parts = [f"## Page {page_num}"]
