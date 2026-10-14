@@ -13,6 +13,26 @@ OUTPUT_MD = Path("PingreeYJ_1_Sanskrit.md")
 
 DEV_NUMS = str.maketrans("0123456789", "०१२३४५६७८९")
 
+def sanitize_devanagari_unicode(text):
+    if not text:
+        return ""
+    # 1. Strip viramas immediately before or after a dependent vowel sign (e.g. श् + ु -> शु)
+    text = re.sub(r'\u094D+([\u093E-\u094C\u0962\u0963])', r'\1', text)
+    text = re.sub(r'([\u093E-\u094C\u0962\u0963])\u094D+', r'\1', text)
+    # 2. Collapse multiple consecutive viramas (्् -> ्)
+    text = re.sub(r'\u094D{2,}', '\u094D', text)
+    # 3. Collapse multiple identical matras
+    text = re.sub(r'([\u093E-\u094C])\1+', r'\1', text)
+    # 4. Virama before anusvara or visarga (क् + ं -> कं)
+    text = re.sub(r'\u094D+([\u0901-\u0903])', r'\1', text)
+    # 5. Remove leading combining marks (virama, matras, anusvara, visarga) at start of word
+    # This removes orphan viramas like '> ्' -> '> ' and ' ्व' -> ' व' that cause dotted circles in Zed
+    text = re.sub(r'(^|[\s\(\[\{>.,!?;:\-–—|।॥])[\u0901-\u0903\u093E-\u094D\u0962\u0963]+', r'\1', text)
+    text = re.sub(r'(^|[\s\(\[\{>.,!?;:\-–—|।॥])[\u0901-\u0903\u093E-\u094D\u0962\u0963]+', r'\1', text)
+    # 6. Remove isolated single consonant with virama at end of word or line (e.g. '। र्' -> '।')
+    text = re.sub(r'(\s+)[\u0915-\u0939]\u094D(?=[\s|।॥]|$)', r'', text)
+    return text
+
 def clean_line(l):
     # Normalize whitespace
     l = re.sub(r'[ \t]+', ' ', l).strip()
@@ -20,6 +40,9 @@ def clean_line(l):
     # Strip leading/trailing stray non-devanagari punctuation
     l = re.sub(r'^[#@$%&*~_+=<>{}\[\]\d\s.,\-/]+', '', l).strip()
     l = re.sub(r'[#@$%&*~_+=<>{}\[\]\s.,\-/]+$', '', l).strip()
+    
+    # Sanitize invalid Unicode sequences that cause dotted circle glyph errors in strict shapers (Zed/HarfBuzz)
+    l = sanitize_devanagari_unicode(l)
     
     # Require at least 4 devanagari characters (filters out noise like '।', '४', '० ।', '{ओओऒ#')
     dev_chars = sum(1 for c in l if '\u0900' <= c <= '\u097F' and c not in '।॥०१२३४५६७८९')
@@ -32,7 +55,6 @@ def clean_line(l):
         return None
         
     return l
-
 def normalize_dandas(line):
     # Collapse multiple consecutive dandas like ॥। -> ॥
     line = re.sub(r'[।॥]{2,}', '॥', line)
