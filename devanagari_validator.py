@@ -68,7 +68,10 @@ def sanitize_devanagari_unicode(text):
 
     # 2. Strip non-Devanagari combining accents from OCR specks (e.g. U+0331 macron below)
     text = re.sub(r'[\u0300-\u036F]', '', text)
-
+    # Strip non-Sanskrit Kashmiri/Sindhi extension vowel signs
+    text = re.sub(r'[\u093A\u093B\u094E\u094F]', '', text)
+    # Collapse conflicting consecutive vowel signs (keep first)
+    text = re.sub(r'[\u093E-\u094C]{2,}', lambda m: m.group(0)[0], text)
     # 3. Swap misplaced anusvara/candrabindu and dependent vowel (दंु -> दुं)
     text = re.sub(r'([\u0901\u0902])([\u093E-\u094C])', r'\2\1', text)
 
@@ -98,6 +101,9 @@ def sanitize_devanagari_unicode(text):
 
     # 11. Strip Vedic pitch accents that OCR hallucinates from printed specks
     text = re.sub(r'[\u0951-\u0954]', '', text)
+    # Strip combining marks attached to non-Devanagari characters (e.g. # + ु -> #)
+    text = re.sub(r'([^\u0900-\u097F\s])[\u0901-\u0903\u093E-\u094D\u0962\u0963]+', r'\1', text)
+
 
     # 12. Strip orphan leading combining marks at word boundary or after punctuation
     # (Removes orphan viramas like '> ्व' -> '> व' and ' ्या' -> ' या')
