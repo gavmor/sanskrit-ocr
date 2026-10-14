@@ -4,6 +4,7 @@ __pycache__/
 .venv/
 venv/
 ENV/
+ocr_markdown/
 env/
 ocr_results/
 *.tmp
