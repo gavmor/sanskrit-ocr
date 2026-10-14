@@ -33,19 +33,30 @@ def clean_line(l):
         
     return l
 
+def normalize_dandas(line):
+    # Collapse multiple consecutive dandas like ॥। -> ॥
+    line = re.sub(r'[।॥]{2,}', '॥', line)
+    # Attach danda to preceding word (no space before)
+    line = re.sub(r'\s+([।॥])', r'\1', line)
+    # Ensure single space after danda if followed by characters
+    line = re.sub(r'([।॥])(?=[^\s\n|।॥])', r'\1 ', line)
+    # Strip leading stray danda at the very start of a line
+    line = re.sub(r'^[।॥]\s*', '', line)
+    return line.strip()
+
 def format_couplets(lines):
     couplets = []
     i = 0
     n = len(lines)
     while i < n:
-        l1 = lines[i]
+        l1 = normalize_dandas(lines[i])
         # Check if line 1 already ends with verse marker ॥
         if '॥' in l1 or i + 1 >= n:
             couplets.append(f"> {l1}")
             i += 1
             continue
             
-        l2 = lines[i+1]
+        l2 = normalize_dandas(lines[i+1])
         couplets.append(f"> {l1}  \n> {l2}")
         i += 2
         
