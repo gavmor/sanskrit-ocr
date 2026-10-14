@@ -9,8 +9,9 @@ from devanagari_validator import (
     validate_devanagari_line,
     INDEP_TO_DEP_VOWELS,
     DECOMPOSED_VOWELS,
+    decode_output,
 )
-from ocr_pdf import decode_output, clean_repetitions
+from ocr_pdf import clean_repetitions
 
 
 class TestDevanagariSanitizer:

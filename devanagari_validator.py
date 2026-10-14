@@ -53,6 +53,44 @@ ILLEGAL_PATTERNS = {
     "DoubleVirama": re.compile(r'\u094D{2,}'),
     "MarkOnAvagraha": re.compile(r'\u093D[\u093E-\u094D]+'),
 }
+def decode_output(out_str):
+    """
+    Decodes the IndicOCR decimal-encoded character prediction string into UTF-8 Devanagari text.
+    Handles 4-digit Devanagari codepoints, 3-digit symbols (|, ~), and 2-digit ASCII characters.
+    """
+    if not out_str:
+        return ""
+    out_word = ""
+    i = 0
+    n = len(out_str)
+    while i < n:
+        if out_str[i:i+2] in ("23", "24") and i + 4 <= n:
+            try:
+                code = int(out_str[i:i+4])
+                out_word += chr(code)
+                i += 4
+                continue
+            except ValueError:
+                pass
+        if out_str[i:i+2] == "12" and i + 3 <= n:
+            try:
+                code = int(out_str[i:i+3])
+                out_word += chr(code)
+                i += 3
+                continue
+            except ValueError:
+                pass
+        if i + 2 <= n and (out_str[i:i+2] in ("32", "35", "39", "44", "45", "46", "95") or ("48" <= out_str[i:i+2] <= "57")):
+            try:
+                code = int(out_str[i:i+2])
+                out_word += chr(code)
+                i += 2
+                continue
+            except ValueError:
+                pass
+        break
+    return out_word
+
 
 def sanitize_devanagari_unicode(text):
     """

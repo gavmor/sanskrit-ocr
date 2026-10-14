@@ -7,7 +7,7 @@ from pathlib import Path
 import pytest
 import requests
 
-from ocr_pdf import decode_output
+from devanagari_validator import decode_output
 
 SAMPLE_IMG = Path("get_predictions/samples/23.jpg")
 SERVER_URL = "http://127.0.0.1:8501/v1/models/sanskrit:predict"
