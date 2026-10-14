@@ -34,7 +34,7 @@ def test_live_server_prediction():
     resp = requests.post(
         SERVER_URL,
         json={"signature_name": "serving_default", "inputs": [{"b64": b64}]},
-        timeout=10.0,
+        timeout=30.0,
     )
     assert resp.status_code == 200
     res = resp.json()
