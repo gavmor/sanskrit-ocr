@@ -18,6 +18,8 @@ import numpy as np
 import requests
 
 from ocr_pdf import predict_line, decode_output, clean_repetitions, DEFAULT_MODEL_URL
+from vagdhenu import to_slp1, scan_meter, identify_meter
+
 
 # Pingree Volume 2 English Translation & Sanskrit Ground Truth for Chapter 1 (verses 11-14)
 PINGREE_GT_V14 = {
@@ -91,7 +93,7 @@ def compare_verse_14():
         roi = cv2.imread(crop_path, cv2.IMREAD_GRAYSCALE)
 
         # 1. IndicOCR
-        indic_text, _ = predict_line(roi)
+        indic_text, _, _, _ = predict_line(roi)
 
         # 2. Tesseract Sanskrit
         tess_san = tesseract_ocr_line(roi, lang="san")
@@ -109,12 +111,18 @@ def compare_verse_14():
         total_tess_san_err += err_san
         total_tess_dev_err += err_dev
 
+        slp1_gt = to_slp1(gt)
+        w_gt, n_gt = scan_meter(slp1_gt)
+        slp1_ind = to_slp1(indic_text)
+        w_ind, n_ind = scan_meter(slp1_ind)
+
         print(f"\n[Quarter {idx}]")
         print(f"  Ground Truth:         {gt}")
         print(f"  IndicOCR-v2:          {indic_text:<35} | CER: {err_indic / l_gt:.1%}")
         print(f"  Tesseract (san):      {tess_san:<35} | CER: {err_san / l_gt:.1%}")
         print(f"  Tesseract (Devanagari): {tess_dev:<35} | CER: {err_dev / l_gt:.1%}")
-
+        print(f"  Vāgdhenu Meter (GT):  {''.join(w_gt)} ({n_gt} syl) -> {identify_meter(w_gt)}")
+        print(f"  Vāgdhenu Meter (OCR): {''.join(w_ind)} ({n_ind} syl)")
     print("\n" + "-" * 70)
     print("OVERALL ACCURACY SUMMARY (VERSE 1.14):")
     print(f"  IndicOCR-v2 CER:           {total_indic_err / total_gt_chars:.1%}")

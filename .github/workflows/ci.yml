@@ -23,15 +23,15 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest requests numpy opencv-python-headless pillow pymupdf pytesseract
+          pip install pytest requests numpy opencv-python-headless pillow pymupdf pytesseract indic-transliteration
 
       - name: Python Syntax & Compilation Check
         run: |
-          python -m py_compile ocr_pdf.py convert_to_markdown.py format_sanskrit_markdown.py devanagari_validator.py verify_accuracy.py
+          python -m py_compile ocr_pdf.py convert_to_markdown.py format_sanskrit_markdown.py devanagari_validator.py verify_accuracy.py vagdhenu_meter.py
 
       - name: Run Unit Tests
         run: |
-          pytest -v tests/test_devanagari_validator.py
+          pytest -v tests/test_devanagari_validator.py tests/test_vagdhenu_integration.py
 
       - name: Audit Sanskrit Markdown Unicode Structure
         run: |
