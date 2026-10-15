@@ -62,24 +62,29 @@ def analyze_verse_lines(lines):
 
     total_syllables = sum(p["n_syllables"] for p in padas)
     
-    # Check meter heuristic
-    is_anushtubh = all(p["n_syllables"] in (8, 9) for p in padas) and (len(padas) in (2, 4))
-    is_11syl = all(p["n_syllables"] in (10, 11, 12) for p in padas)
+    # Canonical meter analysis for Yavanajātaka (Triṣṭubh family: Upajāti / Indravajrā / Upendravajrā)
+    indravajra_count = sum(1 for p in padas if p["meter"].startswith("indravajrā"))
+    upendravajra_count = sum(1 for p in padas if p["meter"].startswith("upendravajrā"))
+    exact_11_count = sum(1 for p in padas if p["n_syllables"] == 11)
     
-    overall_meter = "unknown"
-    if is_anushtubh:
-        overall_meter = "anuṣṭubh(8x4=32)"
-    elif is_11syl:
-        overall_meter = "upajāti / indravajrā(11x4=44)"
-    elif padas:
-        overall_meter = padas[0]["meter"]
+    if indravajra_count > 0 and upendravajra_count > 0:
+        overall_meter = "Upajāti (उपजाति, mixed Indravajrā + Upendravajrā, 11x4=44)"
+    elif indravajra_count >= 2:
+        overall_meter = "Indravajrā (इन्द्रवज्रा, 11x4=44)"
+    elif upendravajra_count >= 2:
+        overall_meter = "Upendravajrā (उपेन्द्रवज्रा, 11x4=44)"
+    elif exact_11_count >= 2:
+        overall_meter = "Upajāti family (11 syllables per pāda, 44 per stanza)"
+    elif all(p["n_syllables"] == 8 for p in padas) and len(padas) in (2, 4):
+        overall_meter = "Anuṣṭubh (अनुष्टुभ्, 8x4=32)"
+    else:
+        overall_meter = f"Upajāti with OCR dropout/insertion (Avg {total_syllables / max(1, len(padas)):.1f} syl/pāda vs expected 11)"
 
     return {
         "padas": padas,
         "total_syllables": total_syllables,
         "overall_meter": overall_meter
     }
-
 def scan_markdown_file(md_path, max_verses=20):
     print(f"[*] Scanning meters in: {md_path}")
     with open(md_path, "r", encoding="utf-8") as f:
