@@ -7,4 +7,5 @@ ENV/
 ocr_markdown/
 env/
 ocr_results/
+release_audio/
 *.tmp

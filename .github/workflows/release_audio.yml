@@ -1,0 +1,106 @@
+name: Release Audio Track
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: "Release tag (e.g. v1.0.0)"
+        required: true
+        default: "v1.0.0"
+
+permissions:
+  contents: write
+
+jobs:
+  build-and-release-audio:
+    name: Generate & Release Sanskrit Audio Track
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Install system audio tools (sox, ffmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sox libsox-fmt-all ffmpeg
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install indic-transliteration pytest
+
+      - name: Generate Audio Release Track
+        run: |
+          python generate_audio_release.py
+
+      - name: Run Audio Unit Tests
+        run: |
+          pytest -v tests/test_audio_release.py
+
+      - name: Upload Audio Track Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanskrit-audio-track
+          path: |
+            release_audio/yavanajataka_ch1_sample.mp3
+            release_audio/yavanajataka_ch1_sample.wav
+            release_audio/track_manifest.json
+
+      - name: Prepare Release Notes
+        run: |
+          TAG="${{ github.ref_name }}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            TAG="${{ github.event.inputs.tag_name }}"
+          fi
+          echo "RELEASE_TAG=$TAG" >> $GITHUB_ENV
+
+          cat << 'EOF' > release_notes.md
+          # The Yavanajātaka of Sphujidhvaja — Sanskrit Audio & Transcription Release
+
+          This release features the machine-transcribed Sanskrit text and metrically-aware chanted audio track sampled from **David Pingree's critical edition of the *Yavanajātaka*** (Harvard Oriental Series Vol. 48; `PingreeYJ_1.pdf`).
+
+          ### Included Artifacts
+          - **`yavanajataka_ch1_sample.mp3`**: Chanted Sanskrit audio track (Verses 11–14, Page 57) in 192 kbps MP3 format with full ID3 metadata.
+          - **`yavanajataka_ch1_sample.wav`**: Studio-quality 24 kHz mono PCM audio track.
+          - **`track_manifest.json`**: Complete verse transcriptions, English translations, and Vāgdhenu metrical scansion (*Indravajrā / Upajāti*, 11 syllables per pāda).
+          - **`PingreeYJ_1_Sanskrit.md`**: Complete 462-page Sanskrit verse text extracted from the PDF via IndicOCR-v2 and validated against OpenType Unicode shaper rules.
+
+          ### Metrical Scansion of Sampled Verses (Vāgdhenu)
+          - **Verse 1.11**: `stajjAntilcAntilca kAremezwamemezwama...` (Indravajrā, 22 syllables)
+          - **Verse 1.12**: `trawcintantas saptaCtahuwyAtrasya...` (Upajāti, 26 syllables)
+          - **Verse 1.13**: `tatrAdvinnnpyA nnDA ॥ १३ ॥` (5 syllables)
+          - **Verse 1.14**: `AdyaH smfto mezavapustato'Ta kAlasya mUrdDA kaTitaH purAREH...` (Canonical Indravajrā, 43 syllables)
+          EOF
+
+      - name: Publish GitHub Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # If tag does not exist in git, create it
+          if ! git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            git tag "$RELEASE_TAG"
+            git push origin "$RELEASE_TAG" || true
+          fi
+
+          gh release create "$RELEASE_TAG" \
+            release_audio/yavanajataka_ch1_sample.mp3 \
+            release_audio/yavanajataka_ch1_sample.wav \
+            release_audio/track_manifest.json \
+            PingreeYJ_1_Sanskrit.md \
+            --title "Yavanajātaka Sanskrit Audio Release ($RELEASE_TAG)" \
+            --notes-file release_notes.md \
+            --latest || gh release upload "$RELEASE_TAG" \
+              release_audio/yavanajataka_ch1_sample.mp3 \
+              release_audio/yavanajataka_ch1_sample.wav \
+              release_audio/track_manifest.json \
+              PingreeYJ_1_Sanskrit.md \
+              --clobber

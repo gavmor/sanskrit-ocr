@@ -20,6 +20,11 @@ jobs:
           python-version: "3.12"
           cache: "pip"
 
+      - name: Install system audio tools (sox, ffmpeg)
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y sox libsox-fmt-all ffmpeg
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
@@ -27,16 +32,28 @@ jobs:
 
       - name: Python Syntax & Compilation Check
         run: |
-          python -m py_compile ocr_pdf.py convert_to_markdown.py format_sanskrit_markdown.py devanagari_validator.py verify_accuracy.py vagdhenu_meter.py
+          python -m py_compile ocr_pdf.py convert_to_markdown.py format_sanskrit_markdown.py devanagari_validator.py verify_accuracy.py vagdhenu_meter.py generate_audio_release.py
 
       - name: Run Unit Tests
         run: |
-          pytest -v tests/test_devanagari_validator.py tests/test_vagdhenu_integration.py
+          pytest -v tests/test_devanagari_validator.py tests/test_vagdhenu_integration.py tests/test_audio_release.py
 
       - name: Audit Sanskrit Markdown Unicode Structure
         run: |
           python validate_devanagari.py PingreeYJ_1_Sanskrit.md
 
+      - name: Generate Sample Audio Track
+        run: |
+          python generate_audio_release.py
+
+      - name: Upload Audio Sample Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sanskrit-audio-track
+          path: |
+            release_audio/yavanajataka_ch1_sample.mp3
+            release_audio/yavanajataka_ch1_sample.wav
+            release_audio/track_manifest.json
   model-serving-smoke:
     name: Model Serving & Inference Smoke Test
     runs-on: ubuntu-latest
