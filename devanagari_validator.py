@@ -136,6 +136,9 @@ def sanitize_devanagari_unicode(text):
     # 10. Strip viramas attached to anusvara/visarga (ं् -> ं, ः् -> ः, क् + ं -> कं)
     text = re.sub(r'([\u0901-\u0903])\u094D+', r'\1', text)
     text = re.sub(r'\u094D+([\u0901-\u0903])', r'\1', text)
+    # Strip any combining marks/matras attached to anusvara or visarga (e.g. ःा -> ः, ःौ -> ः)
+    text = re.sub(r'[\u0902\u0903][\u093A-\u094F\u093C]+', lambda m: m.group(0)[0], text)
+
 
     # 11. Strip Vedic pitch accents that OCR hallucinates from printed specks
     text = re.sub(r'[\u0951-\u0954]', '', text)
