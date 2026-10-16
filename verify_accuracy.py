@@ -85,7 +85,13 @@ def compare_verse_14():
     total_indic_err = 0
     total_tess_san_err = 0
     total_tess_dev_err = 0
+    total_byt5_err = 0
 
+    try:
+        from byt5_correction_pipeline import ByT5SanskritCorrector
+        byt5_corrector = ByT5SanskritCorrector()
+    except Exception:
+        byt5_corrector = None
     for idx, (crop_path, gt) in enumerate(zip(crops, gt_lines), 1):
         if not Path(crop_path).exists():
             print(f"[!] Crop file {crop_path} missing.")
@@ -101,6 +107,14 @@ def compare_verse_14():
         # 3. Tesseract Devanagari
         tess_dev = tesseract_ocr_line(roi, lang="Devanagari")
 
+        # 4. ByT5 Byte-Level Post-Correction (applied to Tesseract candidate)
+        byt5_text = ""
+        err_byt5 = 0
+        if byt5_corrector:
+            res = byt5_corrector.correct_line(tess_dev)
+            byt5_text = res.corrected_text
+            err_byt5, _ = lev_distance(byt5_text, gt)
+            total_byt5_err += err_byt5
         # Error rates
         err_indic, l_gt = lev_distance(indic_text, gt)
         err_san, _ = lev_distance(tess_san, gt)
@@ -121,6 +135,11 @@ def compare_verse_14():
         print(f"  IndicOCR-v2:          {indic_text:<35} | CER: {err_indic / l_gt:.1%}")
         print(f"  Tesseract (san):      {tess_san:<35} | CER: {err_san / l_gt:.1%}")
         print(f"  Tesseract (Devanagari): {tess_dev:<35} | CER: {err_dev / l_gt:.1%}")
+        if byt5_text:
+            slp1_byt5 = to_slp1(byt5_text)
+            w_byt5, n_byt5 = scan_meter(slp1_byt5)
+            print(f"  ByT5 Post-Correction: {byt5_text:<35} | CER: {err_byt5 / l_gt:.1%}")
+            print(f"  Vāgdhenu Meter (ByT5):{''.join(w_byt5)} ({n_byt5} syl) -> {identify_meter(w_byt5)}")
         print(f"  Vāgdhenu Meter (GT):  {''.join(w_gt)} ({n_gt} syl) -> {identify_meter(w_gt)}")
         print(f"  Vāgdhenu Meter (OCR): {''.join(w_ind)} ({n_ind} syl)")
     print("\n" + "-" * 70)
@@ -128,6 +147,8 @@ def compare_verse_14():
     print(f"  IndicOCR-v2 CER:           {total_indic_err / total_gt_chars:.1%}")
     print(f"  Tesseract 'san' CER:       {total_tess_san_err / total_gt_chars:.1%}")
     print(f"  Tesseract 'Devanagari' CER:{total_tess_dev_err / total_gt_chars:.1%}")
+    if byt5_corrector:
+        print(f"  ByT5 Post-Corrected CER:   {total_byt5_err / total_gt_chars:.1%}")
     print("-" * 70)
 
     print("\nMORPHOLOGICAL SPELLCHECK DEMONSTRATION:")
