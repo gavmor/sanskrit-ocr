@@ -1,11 +1,13 @@
 #!/home/user/Desktop/sanskrit-ocr/.venv/bin/python
 """
-High-Performance Sanskrit PDF to Markdown Converter
-Converts Pingree's Yavanajātaka (PingreeYJ_1.pdf) into clean Markdown.
-- Pages 1-56: English introductory apparatus
-- Pages 57-518: Classical Sanskrit Devanagari verses with critical apparatus
+High-Performance Sanskrit PDF to Markdown Converter with LV-ROVER Alignment
+Converts Pingree's Yavanajātaka (PingreeYJ_1.pdf) into clean, metrically-validated Markdown.
+- Pages 57-518: Classical Sanskrit Devanagari verses (Chapters 1-79)
+- Dual-engine consensus: IndicOCR-v2 (Attention-LSTM) + Tesseract 5.5 ('san' CTC)
+- Vāgdhenu 11-syllable Upajāti metrical alignment & resolution
+- OpenType HarfBuzz cluster sanitization (zero DottedCircles)
+- Formats verses into clean blockquoted couplets
 - Multi-process parallel execution with batch inference
-- Resumable page-level checkpointing
 """
 
 import os
@@ -16,6 +18,7 @@ import time
 import json
 import base64
 import argparse
+import subprocess
 from pathlib import Path
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
@@ -25,44 +28,12 @@ import requests
 import pymupdf
 import pytesseract
 from PIL import Image
-from devanagari_validator import sanitize_devanagari_unicode, validate_devanagari_line
 
+from devanagari_validator import sanitize_devanagari_unicode, validate_devanagari_line, decode_output
+from lv_rover import LVROVER
 
 MODEL_URL = "http://127.0.0.1:8501/v1/models/sanskrit:predict"
-
-def decode_output(out_str):
-    if not out_str:
-        return ""
-    out_word = ""
-    i = 0
-    n = len(out_str)
-    while i < n:
-        if out_str[i:i+2] in ("23", "24") and i + 4 <= n:
-            try:
-                code = int(out_str[i:i+4])
-                out_word += chr(code)
-                i += 4
-                continue
-            except ValueError:
-                pass
-        if out_str[i:i+2] == "12" and i + 3 <= n:
-            try:
-                code = int(out_str[i:i+3])
-                out_word += chr(code)
-                i += 3
-                continue
-            except ValueError:
-                pass
-        if i + 2 <= n and (out_str[i:i+2] in ("32", "35", "39", "44", "45", "46", "95") or ("48" <= out_str[i:i+2] <= "57")):
-            try:
-                code = int(out_str[i:i+2])
-                out_word += chr(code)
-                i += 2
-                continue
-            except ValueError:
-                pass
-        break
-    return out_word
+DEV_NUMS = str.maketrans("0123456789", "०१२३४५६७८९")
 
 def clean_repetitions(text):
     if not text:
@@ -80,13 +51,62 @@ def classify_line_script(text):
         return "devanagari"
     return "latin"
 
+def tesseract_ocr_line(roi, lang="san"):
+    cmd = ["/home/linuxbrew/.linuxbrew/bin/tesseract", "stdin", "stdout", "-l", lang, "--psm", "7"]
+    success, buf = cv2.imencode(".png", roi)
+    if not success:
+        return ""
+    try:
+        res = subprocess.run(cmd, input=buf.tobytes(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5.0)
+        return res.stdout.decode("utf-8").strip()
+    except Exception:
+        return ""
+
+def clean_line_content(l):
+    l = re.sub(r'[ \t]+', ' ', l).strip()
+    l = re.sub(r'^[#@$%&*~_+=<>{}\[\]\d\s.,\-/]+', '', l).strip()
+    l = re.sub(r'[#@$%&*~_+=<>{}\[\]\s.,\-/]+$', '', l).strip()
+    l = sanitize_devanagari_unicode(l)
+    dev_chars = sum(1 for c in l if '\u0900' <= c <= '\u097F' and c not in '।॥०१२३४५६७८९')
+    if dev_chars < 4:
+        return None
+    total_alpha = sum(1 for c in l if not c.isspace() and c not in '0123456789.,-—|/:;#')
+    if total_alpha > 0 and (dev_chars / total_alpha) < 0.6:
+        return None
+    return l
+
+def normalize_dandas(line):
+    line = re.sub(r'[।॥]{2,}', '॥', line)
+    line = re.sub(r'\s+([।॥])', r'\1', line)
+    line = re.sub(r'([।॥])(?=[^\s\n|।॥])', r'\1 ', line)
+    line = re.sub(r'^[।॥]\s*', '', line)
+    return line.strip()
+
+def format_couplets(lines):
+    couplets = []
+    i = 0
+    n = len(lines)
+    while i < n:
+        l1 = normalize_dandas(lines[i])
+        if '॥' in l1 or i + 1 >= n:
+            couplets.append(f"> {l1}")
+            i += 1
+            continue
+        l2 = normalize_dandas(lines[i+1])
+        couplets.append(f"> {l1}  \n> {l2}")
+        i += 2
+    return "\n\n".join(couplets)
+
 def process_page_worker(args_tuple):
-    pdf_path, pno, out_dir_str = args_tuple
+    pdf_path, pno, out_dir_str, force = args_tuple
     page_num = pno + 1
     page_md_path = Path(out_dir_str) / f"page_{page_num:04d}.md"
-    
-    # Check if already processed
-    if page_md_path.exists() and page_md_path.stat().st_size > 20:
+
+    # Only process Sanskrit pages 57 to 518
+    if page_num < 57 or page_num > 518:
+        return page_num, "skipped (intro/end)", 0.0
+
+    if not force and page_md_path.exists() and page_md_path.stat().st_size > 20:
         return page_num, "cached", 0.0
 
     t0 = time.time()
@@ -100,22 +120,11 @@ def process_page_worker(args_tuple):
         else:
             pix = page.get_pixmap(dpi=200)
             pil_img = Image.open(io.BytesIO(pix.tobytes())).convert('L')
-        
+
         img_np = np.array(pil_img)
         H, W = img_np.shape[:2]
 
-        # Case 1: Pages 1-56 (English Introduction)
-        if page_num < 57:
-            text = pytesseract.image_to_string(pil_img, lang="eng")
-            lines = [l.strip() for l in text.splitlines() if l.strip()]
-            body = "\n\n".join(lines) if lines else "*[Blank / Uninscribed Page]*"
-            md_content = f"## Page {page_num} (Introduction)\n\n{body}\n"
-            with open(page_md_path, "w", encoding="utf-8") as f:
-                f.write(md_content)
-            dt = time.time() - t0
-            return page_num, f"intro ({len(lines)} lines)", dt
-
-        # Case 2: Pages 57-520 (Sanskrit Verses & Apparatus)
+        # Line detection via Devanagari layout analysis
         data = pytesseract.image_to_data(pil_img, lang='Devanagari', output_type=pytesseract.Output.DICT)
         n = len(data['level'])
         line_boxes = []
@@ -131,11 +140,12 @@ def process_page_worker(args_tuple):
         line_boxes.sort(key=lambda b: (b[0], b[1]))
 
         if not line_boxes:
-            md_content = f"## Page {page_num}\n\n*[No text detected]*\n"
+            md_content = f"## पत्रम् {str(page_num).translate(DEV_NUMS)} (Page {page_num})\n\n*[No text detected]*\n"
             with open(page_md_path, "w", encoding="utf-8") as f:
                 f.write(md_content)
             return page_num, "empty", time.time() - t0
 
+        # Prepare batch for IndicOCR-v2
         b64_list = []
         for y, x, w, h in line_boxes:
             roi = img_np[y:y+h, x:x+w]
@@ -150,16 +160,18 @@ def process_page_worker(args_tuple):
             _, buf = cv2.imencode('.jpg', resized)
             b64_list.append({'b64': base64.b64encode(buf.tobytes()).decode('utf-8')})
 
-        # Batch request to model server
+        # Batch query IndicOCR model server
         resp = requests.post(MODEL_URL, json={'signature_name': 'serving_default', 'inputs': b64_list}, timeout=60.0)
         res = resp.json()
         outputs = res.get('outputs', {}).get('output', [])
         if isinstance(outputs, str):
             outputs = [outputs]
 
-        verses = []
-        apparatus = []
-        for raw_out in outputs:
+        # Multi-Engine Consensus with LV-ROVER + Vāgdhenu Upajāti constraint
+        rover = LVROVER(target_syllables=11)
+        clean_verses = []
+
+        for idx, raw_out in enumerate(outputs):
             decoded = decode_output(raw_out)
             cleaned = clean_repetitions(decoded)
             if not cleaned:
@@ -167,66 +179,69 @@ def process_page_worker(args_tuple):
             sanitized = sanitize_devanagari_unicode(cleaned)
             if not sanitized:
                 continue
+
             script = classify_line_script(sanitized)
             if script == "devanagari":
-                verses.append(sanitized)
-            else:
-                apparatus.append(sanitized)
+                # Run Tesseract Sanskrit on ROI and align via LV-ROVER
+                y, x, w, h = line_boxes[idx]
+                roi = img_np[y:y+h, x:x+w]
+                tess_san = tesseract_ocr_line(roi, lang="san")
+                if tess_san:
+                    rover_res = rover.resolve_line({"indic": sanitized, "tess_san": tess_san})
+                    line_text = rover_res["resolved_text"]
+                else:
+                    line_text = sanitized
 
-        # Build Markdown representation
-        md_parts = [f"## Page {page_num}"]
-        if verses:
-            md_parts.append("\n### Sanskrit Verses\n")
-            md_parts.append("\n\n".join(verses))
-        if apparatus:
-            md_parts.append(f"\n<details>\n<summary>Critical Apparatus (Page {page_num})</summary>\n\n" +
-                            "\n\n".join(apparatus) + "\n</details>")
+                cl = clean_line_content(line_text)
+                if cl:
+                    clean_verses.append(cl)
 
-        md_content = "\n".join(md_parts) + "\n"
+        dev_page = str(page_num).translate(DEV_NUMS)
+        formatted_couplets = format_couplets(clean_verses) if clean_verses else "*[No verses transcribed]*"
+        md_content = f"## पत्रम् {dev_page} (Page {page_num})\n\n{formatted_couplets}\n\n---\n"
+
         with open(page_md_path, "w", encoding="utf-8") as f:
             f.write(md_content)
 
         dt = time.time() - t0
-        return page_num, f"{len(verses)} verses, {len(apparatus)} app", dt
+        return page_num, f"{len(clean_verses)} verses (LV-ROVER)", dt
 
     except Exception as e:
         return page_num, f"error: {str(e)[:50]}", time.time() - t0
 
 
-def build_final_markdown(out_dir, total_pages, final_md_path):
-    print(f"[*] Assembling final markdown document from {total_pages} pages...")
+def build_final_markdown(out_dir, final_md_path):
+    print(f"[*] Assembling clean Sanskrit Markdown document: {final_md_path.name}...")
     header = (
-        "# The Yavanajātaka of Sphujidhvaja\n\n"
-        "**Volume I: Edited Text and Critical Apparatus**  \n"
-        "*Edited, Translated, and Commented on by David Pingree*  \n"
-        "*Harvard Oriental Series, Volume 48 (Harvard University Press, 1978)*  \n\n"
-        "---\n\n"
-        "## Table of Contents & Structure\n"
-        "- **Part 1 (Pages 1–56)**: Introduction and Manuscript Witnesses\n"
-        "- **Part 2 (Pages 57–518)**: Classical Sanskrit Text (Chapters 1–79)\n"
-        "- **Part 3 (Pages 519–520)**: Final Colophon and Back Matter\n\n"
+        "# यवनाजातकम्\n"
+        "### Sphujidhvaja's Yavanajātaka (Sanskrit Text)\n"
+        "*Edition: David Pingree, Harvard Oriental Series, Volume 48 (1978)*  \n"
+        "*Transcribed via IndicOCR-v2 + Tesseract 5.5 + LV-ROVER Metrical Alignment*  \n"
+        "*Source: PingreeYJ_1.pdf (Pages 57–518, Chapters 1–79)*  \n\n"
         "---\n\n"
     )
     pages_dir = Path(out_dir)
+    total_pages = 0
     with open(final_md_path, "w", encoding="utf-8") as out_f:
         out_f.write(header)
-        for p in range(1, total_pages + 1):
+        for p in range(57, 519):
             p_file = pages_dir / f"page_{p:04d}.md"
             if p_file.exists():
                 with open(p_file, "r", encoding="utf-8") as pf:
-                    out_f.write(pf.read() + "\n\n---\n\n")
-            else:
-                out_f.write(f"## Page {p}\n\n*[Page not available]*\n\n---\n\n")
-    print(f"[+] Final document written: {final_md_path} ({final_md_path.stat().st_size / 1024:.1f} KB)")
+                    out_f.write(pf.read() + "\n\n")
+                total_pages += 1
+
+    print(f"[+] Final document written: {final_md_path} ({final_md_path.stat().st_size / 1024:.1f} KB, {total_pages} pages)")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Convert PingreeYJ_1.pdf to Sanskrit Markdown")
+    parser = argparse.ArgumentParser(description="Parse entire PingreeYJ_1.pdf to clean Sanskrit Markdown with LV-ROVER")
     parser.add_argument("--pdf", default="/home/user/Downloads/PingreeYJ_1.pdf")
-    parser.add_argument("--pages", default="all", help="'all', '57-65', '1-520', etc.")
-    parser.add_argument("--workers", type=int, default=8, help="Number of worker processes")
+    parser.add_argument("--pages", default="57-518", help="Page range, e.g. '57-518' (Sanskrit text), '57-65', or 'all'")
+    parser.add_argument("--workers", type=int, default=10, help="Number of worker processes")
     parser.add_argument("--out-dir", default="./ocr_markdown/pages")
     parser.add_argument("--final-md", default="PingreeYJ_1_Sanskrit.md")
+    parser.add_argument("--force", action="store_true", help="Force re-parsing of cached pages")
     args = parser.parse_args()
 
     pdf_path = Path(args.pdf).resolve()
@@ -238,26 +253,27 @@ def main():
     out_dir.mkdir(parents=True, exist_ok=True)
 
     doc = pymupdf.open(str(pdf_path))
-    total_pages = len(doc)
+    pdf_total_pages = len(doc)
     doc.close()
 
     if args.pages.lower() == "all":
-        page_indices = list(range(total_pages))
+        page_indices = list(range(56, min(pdf_total_pages, 518)))  # Sanskrit core: 57-518
     elif "-" in args.pages:
         s, e = args.pages.split("-", 1)
-        page_indices = list(range(int(s) - 1, min(total_pages, int(e))))
+        page_indices = list(range(int(s) - 1, min(pdf_total_pages, int(e))))
     else:
         page_indices = [int(p) - 1 for p in args.pages.split(",") if p.strip()]
 
     print(f"=======================================================")
-    print(f"SANSKRIT PDF -> MARKDOWN CONVERTER")
-    print(f"Source: {pdf_path.name} ({total_pages} pages)")
+    print(f"SANSKRIT PDF -> MARKDOWN PARSER (LV-ROVER ENSEMBLE)")
+    print(f"Source: {pdf_path.name} (Targeting Pages 57–518)")
     print(f"Selected: {len(page_indices)} page(s) with {args.workers} worker processes")
     print(f"Page Cache: {out_dir}")
     print(f"Final Output: {args.final_md}")
+    print(f"Force re-parse: {args.force}")
     print(f"=======================================================")
 
-    tasks = [(str(pdf_path), pno, str(out_dir)) for pno in page_indices]
+    tasks = [(str(pdf_path), pno, str(out_dir), args.force) for pno in page_indices]
     t_start = time.time()
     completed = 0
     total_tasks = len(tasks)
@@ -272,13 +288,17 @@ def main():
                 elapsed = time.time() - t_start
                 rate = completed / elapsed if elapsed > 0 else 0
                 eta = (total_tasks - completed) / rate if rate > 0 else 0
-                print(f"[{completed:3d}/{total_tasks:3d} ({completed*100/total_tasks:5.1f}%)] Page {page_num:04d}: {status:<24} ({dt:.2f}s) | ETA: {eta/60:.1f}m")
+                print(f"[{completed:3d}/{total_tasks:3d} ({completed*100/total_tasks:5.1f}%)] Page {page_num:04d}: {status:<28} ({dt:.2f}s) | ETA: {eta/60:.1f}m")
             except Exception as e:
                 print(f"[!] Page {pno_1based} failed with: {e}")
 
     total_time = time.time() - t_start
     print(f"\n[+] All {completed} pages processed in {total_time/60:.2f} minutes.")
-    build_final_markdown(out_dir, total_pages, Path(args.final_md).resolve())
+    build_final_markdown(out_dir, Path(args.final_md).resolve())
+
+    # Generate updated audio release track from the newly parsed text
+    print("\n[*] Refreshing audio chant release track...")
+    subprocess.run([sys.executable, "generate_audio_release.py"], check=True)
 
 
 if __name__ == "__main__":
