@@ -23,7 +23,7 @@ from typing import Dict, List, Any
 
 from vagdhenu import to_slp1, scan_meter, identify_meter
 
-DEFAULT_OUT_DIR = Path("release_audio")
+DEFAULT_OUT_DIR = Path("output/audio")
 BANK_DIR = Path("vagdhenu/reference_bank")
 
 # Complete 16-Stanza Pārāyaṇa Recitation Sequence for Chapter 1

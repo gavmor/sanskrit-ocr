@@ -283,7 +283,7 @@ def predict_line(roi, server_url=DEFAULT_MODEL_URL):
         return "", 0.0, False, ["InferenceError"]
 
 
-def process_pdf(pdf_path, pages_arg="57-60", output_dir="./ocr_results", server_url=DEFAULT_MODEL_URL, save_vis=False, use_rover=True):
+def process_pdf(pdf_path, pages_arg="57-60", output_dir="./output/ocr", server_url=DEFAULT_MODEL_URL, save_vis=False, use_rover=True):
     pdf_path = Path(pdf_path).resolve()
     if not pdf_path.exists():
         print(f"[!] PDF file not found: {pdf_path}", file=sys.stderr)
@@ -435,7 +435,7 @@ def main():
     parser = argparse.ArgumentParser(description="Local Sanskrit OCR for Classical Indic PDFs (Yavanajātaka)")
     parser.add_argument("--pdf", default="/home/user/Downloads/PingreeYJ_1.pdf", help="Target PDF path")
     parser.add_argument("--pages", default="57-60", help="Page range(s) to process, e.g. '57', '57-60', '57,58,62', or 'all'")
-    parser.add_argument("--output-dir", default="./ocr_results", help="Directory to save transcription files")
+    parser.add_argument("--output-dir", default="./output/ocr", help="Directory to save transcription files")
     parser.add_argument("--server-url", default=DEFAULT_MODEL_URL, help="TensorFlow Serving REST URL")
     parser.add_argument("--visualize", action="store_true", help="Save annotated visualization images")
     parser.add_argument("--no-rover", dest="rover", action="store_false", help="Disable LV-ROVER multi-engine alignment")

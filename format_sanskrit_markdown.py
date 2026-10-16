@@ -8,8 +8,8 @@ Formats Pages 57-518 into clean, readable Sanskrit verse couplets.
 import re
 from pathlib import Path
 
-PAGES_DIR = Path("ocr_markdown/pages")
-OUTPUT_MD = Path("PingreeYJ_1_Sanskrit.md")
+PAGES_DIR = Path("output/markdown/pages")
+OUTPUT_MD = Path("output/markdown/PingreeYJ_1_Sanskrit.md")
 
 DEV_NUMS = str.maketrans("0123456789", "०१२३४५६७८९")
 from devanagari_validator import sanitize_devanagari_unicode
@@ -68,6 +68,7 @@ def format_couplets(lines):
 
 def generate_clean_sanskrit_markdown():
     print(f"[*] Compiling clean Sanskrit-only Markdown from {PAGES_DIR}...")
+    OUTPUT_MD.parent.mkdir(parents=True, exist_ok=True)
     
     header = (
         "# यवनाजातकम्\n"

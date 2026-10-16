@@ -32,15 +32,15 @@ Run the OCR pipeline on any page range:
 ./ocr_pdf.py --pdf /home/user/Downloads/PingreeYJ_1.pdf --pages 57
 
 # Transcribe the full Sanskrit text (Pages 57-518)
-./ocr_pdf.py --pdf /home/user/Downloads/PingreeYJ_1.pdf --pages 57-518 --output-dir ./yavanajataka_full
+./ocr_pdf.py --pdf /home/user/Downloads/PingreeYJ_1.pdf --pages 57-518 --output-dir ./output/ocr
 ```
 
-Outputs generated:
-- `ocr_results/sanskrit_verses_only.txt`: Clean, verse-only Sanskrit transcription.
-- `ocr_results/full_transcription.txt`: Complete page-by-page transcript with headings and apparatus.
-- `ocr_results/pages/page_XXXX.txt`: Per-page text files.
-- `ocr_results/ocr_results.json`: Full bounding box coordinates, confidence scores, and script labels.
-- `ocr_results/visualizations/`: Full-resolution annotated plates (green boxes for Sanskrit, blue for apparatus).
+Outputs generated (all under the gitignored `output/` directory; nothing here is committed):
+- `output/ocr/sanskrit_verses_only.txt`: Clean, verse-only Sanskrit transcription.
+- `output/ocr/full_transcription.txt`: Complete page-by-page transcript with headings and apparatus.
+- `output/ocr/pages/page_XXXX.txt`: Per-page text files.
+- `output/ocr/ocr_results.json`: Full bounding box coordinates, confidence scores, and script labels.
+- `output/ocr/visualizations/`: Full-resolution annotated plates (green boxes for Sanskrit, blue for apparatus).
 
 ---
 

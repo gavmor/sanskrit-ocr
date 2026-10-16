@@ -142,7 +142,7 @@ def audit_transcription(md_path, expected_syllables=11, max_pages=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Sanskrit OCR Metrical QC & Pipeline Auditor")
-    parser.add_argument("--file", default="PingreeYJ_1_Sanskrit.md", help="Markdown file to audit")
+    parser.add_argument("--file", default="output/markdown/PingreeYJ_1_Sanskrit.md", help="Markdown file to audit")
     parser.add_argument("--syllables", type=int, default=11, help="Expected syllables per pada (default: 11 for Yavanajataka)")
     parser.add_argument("--pages", type=int, default=None, help="Max pages to audit (default: all)")
     args = parser.parse_args()

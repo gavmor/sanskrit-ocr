@@ -52,13 +52,13 @@ jobs:
         with:
           name: sanskrit-parayana-track
           path: |
-            release_audio/yavanajataka_ch1_parayana.mp3
-            release_audio/yavanajataka_ch1_parayana.wav
-            release_audio/yavanajataka_ch1_parayana_text.md
-            release_audio/parayana_manifest.json
-            release_audio/yavanajataka_ch1_sample.mp3
-            release_audio/yavanajataka_ch1_sample.wav
-            release_audio/track_manifest.json
+            output/audio/yavanajataka_ch1_parayana.mp3
+            output/audio/yavanajataka_ch1_parayana.wav
+            output/audio/yavanajataka_ch1_parayana_text.md
+            output/audio/parayana_manifest.json
+            output/audio/yavanajataka_ch1_sample.mp3
+            output/audio/yavanajataka_ch1_sample.wav
+            output/audio/track_manifest.json
       - name: Prepare Release Notes
         run: |
           TAG="${{ github.ref_name }}"
@@ -72,12 +72,12 @@ jobs:
 
           This release features the machine-transcribed Sanskrit text and metrically-aware sacred chant recitation (*Pārāyaṇa*) sampled from **David Pingree's critical edition of the *Yavanajātaka*** (Harvard Oriental Series Vol. 48; `PingreeYJ_1.pdf`).
 
-          ### Included Audio & Text Artifacts
           - **`yavanajataka_ch1_parayana.mp3`**: Complete 3.5-minute Sanskrit Pārāyaṇa recitation (Chapter 1, Verses 11–26: The Twelve Signs of the Zodiac) in 320 kbps MP3 format with full ID3 metadata.
           - **`yavanajataka_ch1_parayana.wav`**: Studio-quality 24 kHz mono PCM master recitation recording.
           - **`yavanajataka_ch1_parayana_text.md`**: Timed bilingual verse recitation sheet (Devanāgarī verses + Pingree Vol. 2 English translations).
           - **`parayana_manifest.json`**: Structured recitation metadata, timing, and Vāgdhenu metrical scansion (*Indravajrā / Upajāti*, 11 syllables per pāda).
-          - **`PingreeYJ_1_Sanskrit.md`**: Complete 462-page transcribed Sanskrit text extracted from the PDF via IndicOCR-v2 + LV-ROVER consensus and validated against OpenType Unicode shaper rules.
+
+          Full-book Sanskrit transcription (`PingreeYJ_1_Sanskrit.md`) is generated locally via `convert_to_markdown.py` (requires the source PDF and a running IndicOCR model server) and is not redistributed here; see the repository README for instructions.
           EOF
 
       - name: Publish GitHub Release
@@ -91,23 +91,21 @@ jobs:
           fi
 
           gh release create "$RELEASE_TAG" \
-            release_audio/yavanajataka_ch1_parayana.mp3 \
-            release_audio/yavanajataka_ch1_parayana.wav \
-            release_audio/yavanajataka_ch1_parayana_text.md \
-            release_audio/parayana_manifest.json \
-            release_audio/yavanajataka_ch1_sample.mp3 \
-            release_audio/yavanajataka_ch1_sample.wav \
-            release_audio/track_manifest.json \
-            PingreeYJ_1_Sanskrit.md \
+            output/audio/yavanajataka_ch1_parayana.mp3 \
+            output/audio/yavanajataka_ch1_parayana.wav \
+            output/audio/yavanajataka_ch1_parayana_text.md \
+            output/audio/parayana_manifest.json \
+            output/audio/yavanajataka_ch1_sample.mp3 \
+            output/audio/yavanajataka_ch1_sample.wav \
+            output/audio/track_manifest.json \
             --title "Yavanajātaka Sanskrit Pārāyaṇa ($RELEASE_TAG)" \
             --notes-file release_notes.md \
             --latest || gh release upload "$RELEASE_TAG" \
-              release_audio/yavanajataka_ch1_parayana.mp3 \
-              release_audio/yavanajataka_ch1_parayana.wav \
-              release_audio/yavanajataka_ch1_parayana_text.md \
-              release_audio/parayana_manifest.json \
-              release_audio/yavanajataka_ch1_sample.mp3 \
-              release_audio/yavanajataka_ch1_sample.wav \
-              release_audio/track_manifest.json \
-              PingreeYJ_1_Sanskrit.md \
+              output/audio/yavanajataka_ch1_parayana.mp3 \
+              output/audio/yavanajataka_ch1_parayana.wav \
+              output/audio/yavanajataka_ch1_parayana_text.md \
+              output/audio/parayana_manifest.json \
+              output/audio/yavanajataka_ch1_sample.mp3 \
+              output/audio/yavanajataka_ch1_sample.wav \
+              output/audio/track_manifest.json \
               --clobber

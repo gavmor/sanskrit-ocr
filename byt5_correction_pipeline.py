@@ -575,7 +575,7 @@ def parse_args():
     parser.add_argument("--evaluate-emnlp2022", action="store_true", help="Run EMNLP 2022 benchmark test")
     parser.add_argument("--samples", type=int, default=25, help="Number of benchmark samples to evaluate")
     parser.add_argument("--correct-text", type=str, default=None, help="Correct a single Sanskrit OCR line")
-    parser.add_argument("--markdown-file", type=str, default=None, help="Path to markdown file (e.g. PingreeYJ_1_Sanskrit.md)")
+    parser.add_argument("--markdown-file", type=str, default=None, help="Path to markdown file (e.g. output/markdown/PingreeYJ_1_Sanskrit.md)")
     parser.add_argument("--page", type=int, default=57, help="Page number to correct in markdown file")
     return parser.parse_args()
 

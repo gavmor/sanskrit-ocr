@@ -16,8 +16,8 @@ from vagdhenu import to_slp1, scan_meter, identify_meter
 from typing import cast
 
 
-DEFAULT_MD_PATH = Path("PingreeYJ_1_Sanskrit.md")
-DEFAULT_OUT_DIR = Path("release_audio")
+DEFAULT_MD_PATH = Path("output/markdown/PingreeYJ_1_Sanskrit.md")
+DEFAULT_OUT_DIR = Path("output/audio")
 BANK_DIR = Path("vagdhenu/reference_bank")
 
 # Ground truth & translation mapping for Chapter 1 (Page 57, Verses 11-14)

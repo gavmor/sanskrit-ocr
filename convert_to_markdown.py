@@ -239,8 +239,8 @@ def main():
     parser.add_argument("--pdf", default="/home/user/Downloads/PingreeYJ_1.pdf")
     parser.add_argument("--pages", default="57-518", help="Page range, e.g. '57-518' (Sanskrit text), '57-65', or 'all'")
     parser.add_argument("--workers", type=int, default=10, help="Number of worker processes")
-    parser.add_argument("--out-dir", default="./ocr_markdown/pages")
-    parser.add_argument("--final-md", default="PingreeYJ_1_Sanskrit.md")
+    parser.add_argument("--out-dir", default="./output/markdown/pages")
+    parser.add_argument("--final-md", default="./output/markdown/PingreeYJ_1_Sanskrit.md")
     parser.add_argument("--force", action="store_true", help="Force re-parsing of cached pages")
     args = parser.parse_args()
 

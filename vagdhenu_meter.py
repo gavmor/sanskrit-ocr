@@ -123,7 +123,7 @@ def scan_markdown_file(md_path, max_verses=20):
 
 def main():
     parser = argparse.ArgumentParser(description="Vāgdhenu Sanskrit Metrical Scanner & Chandaḥ-Parīkṣā")
-    parser.add_argument("--file", default="PingreeYJ_1_Sanskrit.md", help="Markdown file to scan")
+    parser.add_argument("--file", default="output/markdown/PingreeYJ_1_Sanskrit.md", help="Markdown file to scan")
     parser.add_argument("--limit", type=int, default=5, help="Number of pages to scan")
     parser.add_argument("--verse", help="Single Sanskrit verse string to scan")
     args = parser.parse_args()

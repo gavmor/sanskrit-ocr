@@ -40,7 +40,7 @@ jobs:
 
       - name: Audit Sanskrit Markdown Unicode Structure
         run: |
-          python validate_devanagari.py PingreeYJ_1_Sanskrit.md
+          python validate_devanagari.py tests/fixtures/sample_sanskrit.md
 
       - name: Generate Pārāyaṇa Recitation Track
         run: |
@@ -52,10 +52,10 @@ jobs:
         with:
           name: sanskrit-parayana-track
           path: |
-            release_audio/yavanajataka_ch1_parayana.mp3
-            release_audio/yavanajataka_ch1_parayana.wav
-            release_audio/yavanajataka_ch1_parayana_text.md
-            release_audio/parayana_manifest.json
+            output/audio/yavanajataka_ch1_parayana.mp3
+            output/audio/yavanajataka_ch1_parayana.wav
+            output/audio/yavanajataka_ch1_parayana_text.md
+            output/audio/parayana_manifest.json
   model-serving-smoke:
     name: Model Serving & Inference Smoke Test
     runs-on: ubuntu-latest

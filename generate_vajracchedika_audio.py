@@ -26,7 +26,7 @@ import numpy as np
 from vagdhenu import to_slp1, scan_meter, identify_meter
 
 DEFAULT_MD_PATH = Path("/home/user/Downloads/Digital Sanskrit Buddhist Canon - Books.md")
-DEFAULT_OUT_DIR = Path("release_audio")
+DEFAULT_OUT_DIR = Path("output/audio")
 BANK_DIR = Path("vagdhenu/reference_bank")
 
 # Canonical 12-movement liturgical sequence representing the essence of Vajracchedikā
