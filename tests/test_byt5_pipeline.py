@@ -138,10 +138,11 @@ class TestPage57Verse14Dataset:
 class TestByT5LiveInference:
     @pytest.fixture(scope="module")
     def corrector(self):
+        pytest.importorskip("transformers")
+        pytest.importorskip("torch")
         corrector = ByT5SanskritCorrector()
         corrector.load_model()
         return corrector
-
     def test_live_single_line_correction(self, corrector):
         noisy = "कर्मण्येवाधिकारस्त मा फलषु कदाचन |"
         res = corrector.correct_line(noisy)

@@ -33,8 +33,27 @@ DEFAULT_UV_INCLUDE = "/home/user/.local/share/uv/python/cpython-3.12-linux-x86_6
 if os.path.exists(DEFAULT_UV_INCLUDE) and "C_INCLUDE_PATH" not in os.environ:
     os.environ["C_INCLUDE_PATH"] = DEFAULT_UV_INCLUDE
 
-import editdistance as ed  # type: ignore
-import torch  # type: ignore
+try:
+    import editdistance as ed  # type: ignore
+except ImportError:
+    class _EdFallback:
+        @staticmethod
+        def eval(s1, s2):
+            m, n = len(s1), len(s2)
+            dp = [[0] * (n + 1) for _ in range(m + 1)]
+            for i in range(m + 1): dp[i][0] = i
+            for j in range(n + 1): dp[0][j] = j
+            for i in range(1, m + 1):
+                for j in range(1, n + 1):
+                    cost = 0 if s1[i-1] == s2[j-1] else 1
+                    dp[i][j] = min(dp[i-1][j]+1, dp[i][j-1]+1, dp[i-1][j-1]+cost)
+            return dp[m][n]
+    ed = _EdFallback()  # type: ignore
+
+try:
+    import torch  # type: ignore
+except ImportError:
+    torch = None
 
 try:
     from transformers import AutoTokenizer, AutoModelForSeq2SeqLM  # type: ignore
@@ -188,7 +207,7 @@ class ByT5SanskritCorrector:
         self,
         model_name_or_path: str = DEFAULT_MODEL,
         device: Optional[str] = None,
-        dtype: Optional[torch.dtype] = None,
+        dtype: Optional[Any] = None,
         max_drift_cer: float = 1.25,
         prefix: str = "correct: ",
     ):
@@ -196,17 +215,18 @@ class ByT5SanskritCorrector:
         self.max_drift_cer = max_drift_cer
         self.prefix = prefix
 
-        if device is None:
-            self.device = "cuda" if torch.cuda.is_available() else "cpu"
+        if torch is not None:
+            if device is None:
+                self.device = "cuda" if torch.cuda.is_available() else "cpu"
+            else:
+                self.device = device
+            if dtype is None:
+                self.dtype = torch.bfloat16 if (self.device == "cuda" and torch.cuda.is_bf16_supported()) else torch.float32
+            else:
+                self.dtype = dtype
         else:
-            self.device = device
-
-        if dtype is None:
-            # Use bfloat16 on CUDA if supported for ~2x speedup and memory efficiency
-            self.dtype = torch.bfloat16 if (self.device == "cuda" and torch.cuda.is_bf16_supported()) else torch.float32
-        else:
-            self.dtype = dtype
-
+            self.device = "cpu"
+            self.dtype = None
         self.tokenizer = None
         self.model = None
 

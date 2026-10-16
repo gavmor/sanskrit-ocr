@@ -27,6 +27,8 @@ import pymupdf
 import pytesseract
 from PIL import Image
 from devanagari_validator import sanitize_devanagari_unicode, validate_devanagari_line
+from lv_rover import LVROVER
+
 
 
 DEFAULT_MODEL_URL = "http://127.0.0.1:8501/v1/models/sanskrit:predict"
@@ -226,6 +228,17 @@ def detect_lines(img_np):
     lines.sort(key=lambda b: (b[0], b[1]))
     return lines
 
+def tesseract_ocr_line(roi, lang="san"):
+    cmd = ["/home/linuxbrew/.linuxbrew/bin/tesseract", "stdin", "stdout", "-l", lang, "--psm", "7"]
+    success, buf = cv2.imencode(".png", roi)
+    if not success:
+        return ""
+    try:
+        res = subprocess.run(cmd, input=buf.tobytes(), stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=5.0)
+        return res.stdout.decode("utf-8").strip()
+    except Exception:
+        return ""
+
 
 def predict_line(roi, server_url=DEFAULT_MODEL_URL):
     """
@@ -270,7 +283,7 @@ def predict_line(roi, server_url=DEFAULT_MODEL_URL):
         return "", 0.0, False, ["InferenceError"]
 
 
-def process_pdf(pdf_path, pages_arg="57-60", output_dir="./ocr_results", server_url=DEFAULT_MODEL_URL, save_vis=False):
+def process_pdf(pdf_path, pages_arg="57-60", output_dir="./ocr_results", server_url=DEFAULT_MODEL_URL, save_vis=False, use_rover=True):
     pdf_path = Path(pdf_path).resolve()
     if not pdf_path.exists():
         print(f"[!] PDF file not found: {pdf_path}", file=sys.stderr)
@@ -288,6 +301,10 @@ def process_pdf(pdf_path, pages_arg="57-60", output_dir="./ocr_results", server_
     total_pages = len(doc)
     page_indices = parse_page_ranges(pages_arg, total_pages)
     print(f"[*] Total PDF pages: {total_pages}. Processing {len(page_indices)} page(s): {[p+1 for p in page_indices]}")
+    rover = LVROVER(target_syllables=11) if use_rover else None
+    if rover:
+        print("[*] LV-ROVER multi-engine alignment enabled (IndicOCR-v2 + Tesseract 5.5 san + Upajāti constraint)")
+
 
     full_text_entries = []
     all_sanskrit_verses = []
@@ -318,10 +335,22 @@ def process_pdf(pdf_path, pages_arg="57-60", output_dir="./ocr_results", server_
             roi = img_np[y:y+h, x:x+w]
             text, prob, is_valid, issues = predict_line(roi, server_url)
             script = classify_line_script(text)
+            rover_meta = None
+            if text and script == "devanagari" and rover:
+                tess_san = tesseract_ocr_line(roi, lang="san")
+                if tess_san:
+                    rover_res = rover.resolve_line({"indic": text, "tess_san": tess_san})
+                    text = rover_res["resolved_text"]
+                    rover_meta = {
+                        "meter": rover_res.get("meter"),
+                        "n_syllables": rover_res.get("n_syllables"),
+                        "weights": rover_res.get("weights")
+                    }
             if text:
                 if script == "devanagari":
                     verse_lines.append(text)
-                    print(f"    [Sanskrit L{l_idx:02d}]: {text}")
+                    meter_tag = f" [{rover_meta['meter']}]" if rover_meta else ""
+                    print(f"    [Sanskrit L{l_idx:02d}]: {text}{meter_tag}")
                 else:
                     apparatus_lines.append(text)
                     print(f"    [Apparatus L{l_idx:02d}]: {text}")
@@ -333,7 +362,8 @@ def process_pdf(pdf_path, pages_arg="57-60", output_dir="./ocr_results", server_
                 "script": script,
                 "unicode_valid": is_valid,
                 "unicode_issues": issues,
-                "probability": float(prob)
+                "probability": float(prob),
+                "rover": rover_meta
             })
 
             if save_vis and vis_img is not None:
@@ -408,6 +438,8 @@ def main():
     parser.add_argument("--output-dir", default="./ocr_results", help="Directory to save transcription files")
     parser.add_argument("--server-url", default=DEFAULT_MODEL_URL, help="TensorFlow Serving REST URL")
     parser.add_argument("--visualize", action="store_true", help="Save annotated visualization images")
+    parser.add_argument("--no-rover", dest="rover", action="store_false", help="Disable LV-ROVER multi-engine alignment")
+    parser.set_defaults(rover=True)
     args = parser.parse_args()
 
     # Ensure server is running
@@ -420,7 +452,8 @@ def main():
         pages_arg=args.pages,
         output_dir=args.output_dir,
         server_url=args.server_url,
-        save_vis=args.visualize
+        save_vis=args.visualize,
+        use_rover=args.rover
     )
 
 

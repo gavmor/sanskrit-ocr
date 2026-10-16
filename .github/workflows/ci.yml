@@ -32,11 +32,11 @@ jobs:
 
       - name: Python Syntax & Compilation Check
         run: |
-          python -m py_compile ocr_pdf.py convert_to_markdown.py format_sanskrit_markdown.py devanagari_validator.py verify_accuracy.py vagdhenu_meter.py generate_audio_release.py
+          python -m py_compile ocr_pdf.py convert_to_markdown.py format_sanskrit_markdown.py devanagari_validator.py verify_accuracy.py vagdhenu_meter.py generate_audio_release.py lv_rover.py byt5_correction_pipeline.py benchmark_spike.py pipeline_qc.py
 
       - name: Run Unit Tests
         run: |
-          pytest -v tests/test_devanagari_validator.py tests/test_vagdhenu_integration.py tests/test_audio_release.py
+          pytest -v tests/
 
       - name: Audit Sanskrit Markdown Unicode Structure
         run: |
