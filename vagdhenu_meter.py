@@ -1,6 +1,6 @@
 #!/home/user/Desktop/sanskrit-ocr/.venv/bin/python
 """
-Vāgdhenu Meter Scanner & Chandaḥ-Parīkṣā Tool for Sanskrit OCR
+Vāgdhenu Meter Scanner & Chhandaḥ-Parīkṣā Tool for Sanskrit OCR
 Scans verses into per-akṣara Laghu (L) / Guru (G) weight sequences,
 identifies classical Sanskrit meters, and flags syllable count anomalies.
 """
@@ -122,7 +122,7 @@ def scan_markdown_file(md_path, max_verses=20):
             break
 
 def main():
-    parser = argparse.ArgumentParser(description="Vāgdhenu Sanskrit Metrical Scanner & Chandaḥ-Parīkṣā")
+    parser = argparse.ArgumentParser(description="Vāgdhenu Sanskrit Metrical Scanner & Chhandaḥ-Parīkṣā")
     parser.add_argument("--file", default="output/markdown/PingreeYJ_1_Sanskrit.md", help="Markdown file to scan")
     parser.add_argument("--limit", type=int, default=5, help="Number of pages to scan")
     parser.add_argument("--verse", help="Single Sanskrit verse string to scan")

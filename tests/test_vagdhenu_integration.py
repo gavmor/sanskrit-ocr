@@ -1,6 +1,6 @@
 """
 Unit tests for Vāgdhenu integration:
-Metrical scansion, Chandaḥ identification, syllabification, and text preprocessing.
+Metrical scansion, Chhandaḥ identification, syllabification, and text preprocessing.
 """
 
 import pytest

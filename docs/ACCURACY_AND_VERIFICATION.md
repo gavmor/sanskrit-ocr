@@ -131,7 +131,7 @@ tags_err = analyzer.getMorphologicalTags(SanskritObject("कानास्य")
 # -> REJECTED: Flags OCR error
 ```
 
-### 6.2 Metrical Syllable Scanner (*Chandaḥ-Parīkṣā*)
+### 6.2 Metrical Syllable Scanner (*Chhandaḥ-Parīkṣā*)
 The *Yavanajātaka* is composed in classical quantitative Sanskrit meters:
 - **Anuṣṭubh** (*Śloka*): 32 syllables arranged in four 8-syllable quarters (*pādas*).
 - **Upajāti / Indravajrā**: 11 syllables per quarter.
