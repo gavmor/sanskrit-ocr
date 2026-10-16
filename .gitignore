@@ -8,4 +8,5 @@ ocr_markdown/
 env/
 ocr_results/
 release_audio/
+qc_report.json
 *.tmp
