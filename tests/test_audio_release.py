@@ -6,6 +6,8 @@ from pathlib import Path
 import pytest
 from generate_audio_release import assemble_chant_audio, CHAPTER_1_METADATA
 from generate_vajracchedika_audio import VAJRACCHEDIKA_MOVEMENTS, build_vajracchedika_audio_suite
+from generate_parayana_chant import build_parayana_track, YAVANAJATAKA_CH1_PARAYANA_VERSES
+
 
 
 def test_audio_metadata_structure():
@@ -28,6 +30,15 @@ def test_assemble_chant_audio(tmp_path):
     assert mp3_file.exists() and mp3_file.stat().st_size > 10000
     assert wav_file.exists() and wav_file.stat().st_size > 10000
     assert manifest_file.exists()
+def test_parayana_track_generation(tmp_path):
+    out_dir = tmp_path / "parayana_test"
+    success = build_parayana_track(out_dir)
+    assert success is True
+    assert (out_dir / "yavanajataka_ch1_parayana.mp3").exists()
+    assert (out_dir / "yavanajataka_ch1_parayana.wav").exists()
+    assert (out_dir / "parayana_manifest.json").exists()
+    assert len(YAVANAJATAKA_CH1_PARAYANA_VERSES) == 16
+
 
 def test_vajracchedika_metadata_structure():
     assert len(VAJRACCHEDIKA_MOVEMENTS) == 12

@@ -32,7 +32,7 @@ jobs:
 
       - name: Python Syntax & Compilation Check
         run: |
-          python -m py_compile ocr_pdf.py convert_to_markdown.py format_sanskrit_markdown.py devanagari_validator.py verify_accuracy.py vagdhenu_meter.py generate_audio_release.py lv_rover.py byt5_correction_pipeline.py benchmark_spike.py pipeline_qc.py
+          python -m py_compile ocr_pdf.py convert_to_markdown.py format_sanskrit_markdown.py devanagari_validator.py verify_accuracy.py vagdhenu_meter.py generate_parayana_chant.py generate_audio_release.py lv_rover.py byt5_correction_pipeline.py benchmark_spike.py pipeline_qc.py
 
       - name: Run Unit Tests
         run: |
@@ -42,18 +42,20 @@ jobs:
         run: |
           python validate_devanagari.py PingreeYJ_1_Sanskrit.md
 
-      - name: Generate Sample Audio Track
+      - name: Generate Pārāyaṇa Recitation Track
         run: |
+          python generate_parayana_chant.py
           python generate_audio_release.py
 
-      - name: Upload Audio Sample Artifact
+      - name: Upload Pārāyaṇa Audio Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sanskrit-audio-track
+          name: sanskrit-parayana-track
           path: |
-            release_audio/yavanajataka_ch1_sample.mp3
-            release_audio/yavanajataka_ch1_sample.wav
-            release_audio/track_manifest.json
+            release_audio/yavanajataka_ch1_parayana.mp3
+            release_audio/yavanajataka_ch1_parayana.wav
+            release_audio/yavanajataka_ch1_parayana_text.md
+            release_audio/parayana_manifest.json
   model-serving-smoke:
     name: Model Serving & Inference Smoke Test
     runs-on: ubuntu-latest

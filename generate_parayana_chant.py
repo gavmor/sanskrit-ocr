@@ -1,15 +1,14 @@
 #!/home/user/Desktop/sanskrit-ocr/.venv/bin/python
 """
-Sanskrit Full Chant Song Generator: "द्वादशराशिस्तोत्रम्" (Hymn of the Twelve Signs)
-Sphujidhvaja's Yavanajātaka, Chapter 1 (Verses 11–26)
+Sanskrit Pārāyaṇa (पारायणम्) Recitation Track Generator
+Sphujidhvaja's Yavanajātaka, Chapter 1 (Verses 11–26: Dvādaśa-Rāśi-Svarūpa)
 Sampled from PingreeYJ_1.pdf (Pages 57–60).
 
-Synthesizes a complete ~3.5-minute classical Sanskrit chant production:
-1. Acoustic Tanpura drone bed (tuned to C# / Pa-Sa'-Sa'-Sa harmonic series)
-2. 16 consecutive stanzas in authentic Indravajrā / Upendravajrā / Upajāti chant melody
-3. Natural hemistich breathing pauses (0.6s) and inter-verse transitions (1.2s)
-4. Gentle temple hall reverberation and master limiting
-5. High-fidelity MP3 (320 kbps) + Lossless WAV + Timed Lyric Sheet
+Synthesizes a complete classical Sanskrit Pārāyaṇa (metrical chanting recitation):
+1. 16 consecutive stanzas in authentic Indravajrā / Upendravajrā / Upajāti chant melody
+2. Natural hemistich breathing pauses (0.65s) and inter-verse transitions (1.4s)
+3. Pure authentic recitation (unaccompanied a cappella pārāyaṇa) with natural acoustic hall resonance
+4. High-fidelity MP3 (320 kbps) + Lossless WAV (24 kHz) + Timed Verse Recitation Text + Manifest JSON
 """
 
 import sys
@@ -20,15 +19,15 @@ import struct
 import argparse
 import subprocess
 from pathlib import Path
-import numpy as np
+from typing import Dict, List, Any
 
 from vagdhenu import to_slp1, scan_meter, identify_meter
 
 DEFAULT_OUT_DIR = Path("release_audio")
 BANK_DIR = Path("vagdhenu/reference_bank")
 
-# Complete 16-Stanza Song Cycle for Chapter 1
-YAVANAJATAKA_CH1_SONG_VERSES = [
+# Complete 16-Stanza Pārāyaṇa Recitation Sequence for Chapter 1
+YAVANAJATAKA_CH1_PARAYANA_VERSES = [
     {
         "verse_no": "1.11",
         "title": "Maṅgalācaraṇam (Zodiac Invocation)",
@@ -128,20 +127,20 @@ YAVANAJATAKA_CH1_SONG_VERSES = [
 ]
 
 
-def build_full_song_track(output_dir=DEFAULT_OUT_DIR):
+def build_parayana_track(output_dir=DEFAULT_OUT_DIR):
     output_dir.mkdir(parents=True, exist_ok=True)
-    master_wav = output_dir / "yavanajataka_ch1_full_song.wav"
-    master_mp3 = output_dir / "yavanajataka_ch1_full_song.mp3"
+    master_wav = output_dir / "yavanajataka_ch1_parayana.wav"
+    master_mp3 = output_dir / "yavanajataka_ch1_parayana.mp3"
     voice_track_wav = output_dir / "_voice_track.wav"
-    tanpura_wav = output_dir / "_tanpura_drone.wav"
-    lyrics_md = output_dir / "yavanajataka_ch1_song_lyrics.md"
-    song_json = output_dir / "song_metadata.json"
+    recitation_text_md = output_dir / "yavanajataka_ch1_parayana_text.md"
+    manifest_json = output_dir / "parayana_manifest.json"
 
     print("=" * 75)
-    print("SANSKRIT FULL CHANT SONG COMPOSER (YAVANAJĀTAKA CH. 1, VV. 11-26)")
+    print("SANSKRIT PĀRĀYAṆA RECITATION TRACK COMPOSER")
+    print("Sphujidhvaja's Yavanajātaka, Chapter 1 (Verses 11–26)")
     print("=" * 75)
 
-    # 1. Map reference chant styles from Vāgdhenu
+    # Reference chant styles from Vāgdhenu
     clips = {
         "indravajra": BANK_DIR / "indravajra.wav",
         "upajati": BANK_DIR / "upajati.wav",
@@ -153,26 +152,26 @@ def build_full_song_track(output_dir=DEFAULT_OUT_DIR):
             print(f"[!] Error: Missing audio bank file: {p}", file=sys.stderr)
             return False
 
-    # Spacers
+    # Natural breathing and pause spacers
     pause_pāda = output_dir / "_p_pada.wav"
     pause_verse = output_dir / "_p_verse.wav"
     prelude_silence = output_dir / "_p_prelude.wav"
 
     subprocess.run(["sox", "-n", "-r", "24000", "-c", "1", "-b", "16", str(pause_pāda), "trim", "0.0", "0.65"], check=True)
     subprocess.run(["sox", "-n", "-r", "24000", "-c", "1", "-b", "16", str(pause_verse), "trim", "0.0", "1.4"], check=True)
-    subprocess.run(["sox", "-n", "-r", "24000", "-c", "1", "-b", "16", str(prelude_silence), "trim", "0.0", "5.0"], check=True)
+    subprocess.run(["sox", "-n", "-r", "24000", "-c", "1", "-b", "16", str(prelude_silence), "trim", "0.0", "3.0"], check=True)
 
     # Assemble voice sequence: 16 stanzas with alternating Indravajrā / Upendravajrā melody
     voice_chain = [str(prelude_silence)]
     stanzas_timing = []
-    current_time_sec = 5.0
+    current_time_sec = 3.0
 
-    print(f"[*] Assembling 16-stanza vocal sequence across 12 zodiac signs...")
-    for idx, v in enumerate(YAVANAJATAKA_CH1_SONG_VERSES, 1):
+    print(f"[*] Assembling 16-stanza vocal sequence across the 12 zodiac signs...")
+    for idx, v in enumerate(YAVANAJATAKA_CH1_PARAYANA_VERSES, 1):
         v_num = v["verse_no"]
         v_name = v["title"]
 
-        # Melodic alternation: Indravajra (bold tonic) and Upendravajra (gentle fifth)
+        # Melodic alternation: Indravajrā (bold tonic) and Upendravajrā (gentle fifth)
         if idx % 2 == 1:
             h1_clip = clips["indravajra"]
             h2_clip = clips["upajati"]
@@ -206,7 +205,7 @@ def build_full_song_track(output_dir=DEFAULT_OUT_DIR):
 
     # Final postlude spacer
     postlude_silence = output_dir / "_p_postlude.wav"
-    subprocess.run(["sox", "-n", "-r", "24000", "-c", "1", "-b", "16", str(postlude_silence), "trim", "0.0", "6.0"], check=True)
+    subprocess.run(["sox", "-n", "-r", "24000", "-c", "1", "-b", "16", str(postlude_silence), "trim", "0.0", "4.0"], check=True)
     voice_chain.append(str(postlude_silence))
 
     # Concat voice track
@@ -225,13 +224,12 @@ def build_full_song_track(output_dir=DEFAULT_OUT_DIR):
     total_duration_sec = float(probe_res.stdout.strip())
     print(f"[+] Total vocal track duration: {total_duration_sec:.1f} seconds ({total_duration_sec/60:.2f} minutes)")
 
-    # 2. Master mix: pure authentic vocal chant with subtle temple hall acoustics (zero synthetic metronome)
-    print("[*] Mastering vocal chant (pure authentic recitation, no metronome)...")
+    # Master mix: pure authentic vocal recitation with natural acoustic hall resonance
+    print("[*] Mastering vocal recitation track (pure authentic pārāyaṇa)...")
     ffmpeg_mix_cmd = [
         "ffmpeg", "-y",
         "-i", str(voice_track_wav),
         "-filter_complex",
-        # Natural acoustic hall warmth without any synthetic ticking drone
         "aecho=0.8:0.6:40:0.18[reverb];"
         "[reverb]volume=1.05[master]",
         "-map", "[master]",
@@ -243,19 +241,20 @@ def build_full_song_track(output_dir=DEFAULT_OUT_DIR):
     # Clean up intermediate stem
     voice_track_wav.unlink(missing_ok=True)
 
-    # 4. Encode high-fidelity 320 kbps MP3 with full ID3 tag suite
-    print("[*] Encoding 320 kbps MP3 with album metadata...")
-    track_title = "यवनाजातकम् - द्वादशराशिस्तोत्रम् (Hymn of the 12 Signs)"
+    # Encode high-fidelity 320 kbps MP3 with full ID3 tag suite
+    print("[*] Encoding 320 kbps MP3 with Sanskrit Pārāyaṇa metadata...")
+    track_title = "यवनाजातकम् - प्रथमोऽध्यायः (श्लोकाः ११-२६) - पारायणम्"
+    track_title_en = "Yavanajātaka: Chapter 1 Pārāyaṇa Recitation (Verses 11–26)"
     album_title = "The Yavanajātaka of Sphujidhvaja (Harvard Oriental Series Vol. 48)"
     artist_title = "Sphujidhvaja (स्फुजिध्वज) / Vāgdhenu Sanskrit Pārāyaṇa Engine"
 
     ffmpeg_mp3_cmd = [
         "ffmpeg", "-y", "-i", str(master_wav),
         "-codec:a", "libmp3lame", "-b:a", "320k",
-        "-metadata", f"title={track_title}",
+        "-metadata", f"title={track_title_en}",
         "-metadata", f"artist={artist_title}",
         "-metadata", f"album={album_title}",
-        "-metadata", "genre=Sanskrit Chanting / Pārāyaṇa",
+        "-metadata", "genre=Sanskrit Pārāyaṇa (संस्कृत-पारायणम्)",
         "-metadata", "date=2026",
         "-metadata", "track=1/1",
         "-metadata", "composer=Sphujidhvaja (c. 269 CE)",
@@ -265,64 +264,69 @@ def build_full_song_track(output_dir=DEFAULT_OUT_DIR):
     subprocess.run(ffmpeg_mp3_cmd, check=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     print(f"[+] Master MP3 encoded: {master_mp3.name} ({master_mp3.stat().st_size / (1024*1024):.1f} MB)")
 
-    # 5. Export formatted Markdown Lyric Sheet
-    print("[*] Writing timed bilingual lyric sheet...")
-    lyric_lines = [
+    # Export formatted Markdown Recitation Text
+    print("[*] Writing timed bilingual recitation text sheet...")
+    text_lines = [
         f"# {track_title}\n",
+        f"### {track_title_en}\n",
         f"**{album_title}**  \n",
-        f"*Composer: {artist_title}*  \n",
+        f"*Recitation / Pārāyaṇa: {artist_title}*  \n",
         f"*Duration: {int(total_duration_sec//60):02d}:{int(total_duration_sec%60):02d} ({total_duration_sec:.1f}s)*  \n",
         f"*Audio Track: [`{master_mp3.name}`]({master_mp3.name})*\n\n",
         "---\n\n",
-        "## Timed Verse Lyrics & Translation\n\n"
+        "## Timed Verse Recitation & Translation\n\n"
     ]
     for s in stanzas_timing:
-        lyric_lines.append(
+        text_lines.append(
             f"### [{s['time_start']} - {s['time_end']}] Verse {s['verse_no']}: {s['title']}\n\n"
             f"> {s['sanskrit']}\n\n"
             f"*{s['translation']}*\n\n"
             "---\n\n"
         )
-    with open(lyrics_md, "w", encoding="utf-8") as f:
-        f.writelines(lyric_lines)
-    print(f"[+] Lyric sheet written: {lyrics_md.name}")
+    with open(recitation_text_md, "w", encoding="utf-8") as f:
+        f.writelines(text_lines)
+    print(f"[+] Recitation text written: {recitation_text_md.name}")
 
-    # 6. Save Song Manifest JSON
-    song_manifest = {
-        "title": track_title,
+    # Save Pārāyaṇa Manifest JSON
+    parayana_manifest = {
+        "title": track_title_en,
+        "title_sanskrit": track_title,
         "album": album_title,
         "artist": artist_title,
+        "genre": "Sanskrit Pārāyaṇa (संस्कृत-पारायणम्)",
         "meter": "Canonical Upajāti (Indravajrā + Upendravajrā, 11 syllables/pāda)",
         "duration_seconds": round(total_duration_sec, 2),
         "duration_formatted": f"{int(total_duration_sec//60):02d}:{int(total_duration_sec%60):02d}",
         "files": {
             "mp3": str(master_mp3.name),
             "wav": str(master_wav.name),
-            "lyrics_markdown": str(lyrics_md.name)
+            "text_markdown": str(recitation_text_md.name)
         },
         "stanzas": stanzas_timing
     }
-    with open(song_json, "w", encoding="utf-8") as f:
-        json.dump(song_manifest, f, ensure_ascii=False, indent=2)
-    print(f"[+] Song manifest saved: {song_json.name}")
+    with open(manifest_json, "w", encoding="utf-8") as f:
+        json.dump(parayana_manifest, f, ensure_ascii=False, indent=2)
+    print(f"[+] Pārāyaṇa manifest saved: {manifest_json.name}")
 
     print("\n" + "=" * 75)
-    print("COMPLETE SANSKRIT SONG TRACK PRODUCED:")
+    print("SANSKRIT PĀRĀYAṆA RECITATION TRACK PRODUCED:")
     print(f"  Duration:         {int(total_duration_sec//60)}m {int(total_duration_sec%60)}s ({total_duration_sec:.1f} seconds)")
     print(f"  MP3 Audio:        {master_mp3.resolve()} ({master_mp3.stat().st_size/(1024*1024):.1f} MB, 320 kbps)")
     print(f"  Master WAV:       {master_wav.resolve()} ({master_wav.stat().st_size/(1024*1024):.1f} MB, 24 kHz)")
-    print(f"  Lyric Sheet:      {lyrics_md.resolve()}")
-    print(f"  Song Manifest:    {song_json.resolve()}")
+    print(f"  Recitation Text:  {recitation_text_md.resolve()}")
+    print(f"  Manifest:         {manifest_json.resolve()}")
     print("=" * 75)
     return True
 
+
 def main():
-    parser = argparse.ArgumentParser(description="Generate Full Sanskrit Chant Song (Yavanajātaka Ch. 1)")
+    parser = argparse.ArgumentParser(description="Generate Sanskrit Pārāyaṇa Recitation Track (Yavanajātaka Ch. 1)")
     parser.add_argument("--outdir", default=str(DEFAULT_OUT_DIR), help="Output directory")
     args = parser.parse_args()
 
-    success = build_full_song_track(Path(args.outdir))
+    success = build_parayana_track(Path(args.outdir))
     sys.exit(0 if success else 1)
+
 
 if __name__ == "__main__":
     main()
